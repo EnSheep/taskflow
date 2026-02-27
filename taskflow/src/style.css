@@ -1,0 +1,35 @@
+:root {
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --bg: #0f0f12;
+  --surface: #16161a;
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --accent: #fbbf24;
+  --accent-dark: #d97706;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-display);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+#app {
+  height: 100%;
+  overflow: hidden;
+}
