@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"myproject/config"
-	"myproject/models"
+	models "myproject/internal/model"
 	"myproject/utils"
 	"net/http"
 	"strings"
