@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useTasksStore } from '../stores/tasks'
@@ -127,6 +127,52 @@ const totalCount = computed(() => tasksStore.tasks.length)
 const progress = computed(() =>
   totalCount.value ? Math.round((completedCount.value / totalCount.value) * 100) : 0
 )
+
+// 编辑任务描述：当前正在编辑的任务 id，以及输入框内容
+const editingTaskId = ref<number | null>(null)
+const editingValue = ref('')
+const editInputRef = ref<HTMLInputElement | null>(null)
+const editStartedAt = ref(0)
+
+function isEditing(taskId: number) {
+  return editingTaskId.value != null && Number(editingTaskId.value) === Number(taskId)
+}
+
+function startEdit(task: { id: number; title: string }) {
+  editingTaskId.value = Number(task.id)
+  editingValue.value = task.title
+  editStartedAt.value = Date.now()
+  nextTick(() => {
+    editInputRef.value?.focus()
+  })
+}
+
+function cancelEdit() {
+  editingTaskId.value = null
+  editingValue.value = ''
+}
+
+async function submitEdit(taskId: number) {
+  // 避免点击编辑按钮后 blur 立刻触发导致未保存就退出
+  if (Date.now() - editStartedAt.value < 150) return
+  const val = editingValue.value.trim()
+  if (val === '') {
+    cancelEdit()
+    return
+  }
+  await tasksStore.updateTaskDescription(taskId, val)
+  cancelEdit()
+}
+
+function onEditKeydown(e: KeyboardEvent, taskId: number) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    submitEdit(taskId)
+  }
+  if (e.key === 'Escape') {
+    cancelEdit()
+  }
+}
 </script>
 
 <template>
@@ -170,13 +216,36 @@ const progress = computed(() =>
           <div class="task-list-wrap">
             <ul class="task-list">
               <li v-for="task in tasksStore.tasks" :key="task.id" class="task-item"
-                :class="{ completed: task.completed }">
-                <label class="task-label">
-                  <input type="checkbox" :checked="task.completed" @change="tasksStore.toggleTask(task.id)" />
-                  <span class="checkmark" />
-                  <span class="task-title">{{ task.title }}</span>
-                </label>
-                <button type="button" class="btn-remove" title="删除" @click="tasksStore.removeTask(task.id)">
+                :class="{ completed: task.completed, 'is-editing': isEditing(task.id) }">
+                <div class="task-content">
+                  <template v-if="isEditing(task.id)">
+                    <label class="task-label task-label--cb-only">
+                      <input type="checkbox" :checked="task.completed" @change="tasksStore.toggleTask(task.id)" />
+                      <span class="checkmark" />
+                    </label>
+                    <input
+                      ref="editInputRef"
+                      v-model="editingValue"
+                      type="text"
+                      class="task-edit-input"
+                      placeholder="输入任务描述..."
+                      @blur="submitEdit(task.id)"
+                      @keydown="onEditKeydown($event, task.id)"
+                      @click.stop
+                    />
+                  </template>
+                  <template v-else>
+                    <label class="task-label">
+                      <input type="checkbox" :checked="task.completed" @change="tasksStore.toggleTask(task.id)" />
+                      <span class="checkmark" />
+                      <span class="task-title">{{ task.title }}</span>
+                    </label>
+                  </template>
+                </div>
+                <button type="button" class="btn-edit" title="编辑" @click.stop="startEdit(task)">
+                  ✎
+                </button>
+                <button type="button" class="btn-remove" title="删除" @click.stop="tasksStore.removeTask(task.id)">
                   ×
                 </button>
               </li>
@@ -225,13 +294,36 @@ const progress = computed(() =>
           <div class="task-list-wrap">
             <ul class="task-list">
               <li v-for="task in tasksStore.tasks" :key="task.id" class="task-item"
-                :class="{ completed: task.completed }">
-                <label class="task-label">
-                  <input type="checkbox" :checked="task.completed" @change="tasksStore.toggleTask(task.id)" />
-                  <span class="checkmark" />
-                  <span class="task-title">{{ task.title }}</span>
-                </label>
-                <button type="button" class="btn-remove" title="删除" @click="tasksStore.removeTask(task.id)">
+                :class="{ completed: task.completed, 'is-editing': isEditing(task.id) }">
+                <div class="task-content">
+                  <template v-if="isEditing(task.id)">
+                    <label class="task-label task-label--cb-only">
+                      <input type="checkbox" :checked="task.completed" @change="tasksStore.toggleTask(task.id)" />
+                      <span class="checkmark" />
+                    </label>
+                    <input
+                      ref="editInputRef"
+                      v-model="editingValue"
+                      type="text"
+                      class="task-edit-input"
+                      placeholder="输入任务描述..."
+                      @blur="submitEdit(task.id)"
+                      @keydown="onEditKeydown($event, task.id)"
+                      @click.stop
+                    />
+                  </template>
+                  <template v-else>
+                    <label class="task-label">
+                      <input type="checkbox" :checked="task.completed" @change="tasksStore.toggleTask(task.id)" />
+                      <span class="checkmark" />
+                      <span class="task-title">{{ task.title }}</span>
+                    </label>
+                  </template>
+                </div>
+                <button type="button" class="btn-edit" title="编辑" @click.stop="startEdit(task)">
+                  ✎
+                </button>
+                <button type="button" class="btn-remove" title="删除" @click.stop="tasksStore.removeTask(task.id)">
                   ×
                 </button>
               </li>
@@ -509,6 +601,14 @@ const progress = computed(() =>
   color: var(--text-muted);
 }
 
+.task-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .task-label {
   flex: 1;
   display: flex;
@@ -516,6 +616,12 @@ const progress = computed(() =>
   gap: 0.75rem;
   cursor: pointer;
   user-select: none;
+  min-width: 0;
+}
+
+.task-label--cb-only {
+  flex: 0 0 auto;
+  cursor: pointer;
 }
 
 .task-label input {
@@ -555,6 +661,25 @@ const progress = computed(() =>
   transition: color 0.2s;
 }
 
+.btn-edit {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-edit:hover {
+  color: var(--accent);
+  background: rgba(251, 191, 36, 0.12);
+}
+
 .btn-remove {
   width: 28px;
   height: 28px;
@@ -572,6 +697,31 @@ const progress = computed(() =>
 .btn-remove:hover {
   color: #f87171;
   background: rgba(248, 113, 113, 0.1);
+}
+
+/* 编辑输入框：未聚焦时也有明显背景，聚焦时高亮 */
+.task-edit-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 2px solid rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.task-edit-input::placeholder {
+  color: var(--text-muted);
+}
+
+.task-edit-input:focus {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.35);
 }
 
 .empty-state {

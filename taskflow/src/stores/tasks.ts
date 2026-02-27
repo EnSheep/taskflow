@@ -93,6 +93,20 @@ export const useTasksStore = defineStore('tasks', () => {
     }
   }
 
+  /** 仅更新任务描述，不改变状态 */
+  async function updateTaskDescription(id: number, description: string) {
+    const token = getToken()
+    error.value = null
+    try {
+      const res = await updateTaskApi(token, id, { description: description.trim() })
+      const idx = tasks.value.findIndex((t) => t.id === id)
+      if (idx !== -1) tasks.value[idx] = dtoToTask(res.task)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : '更新失败'
+      throw e
+    }
+  }
+
   return {
     tasks,
     loading,
@@ -101,5 +115,6 @@ export const useTasksStore = defineStore('tasks', () => {
     addTask,
     toggleTask,
     removeTask,
+    updateTaskDescription,
   }
 })

@@ -54,7 +54,7 @@ func GetTask(user models.User, id string) (*models.Task, error) {
 
 // UpdateTask 更新任务
 func UpdateTask(user models.User, id string, updates map[string]interface{}) (*models.Task, error) {
-	task, err := repository.GetTaskByID(id, user.ID)
+	task, err := repository.UpdateTask(id, user.ID)
 	if err != nil {
 		return nil, ErrTaskNotFound
 	}
